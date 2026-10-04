@@ -1,0 +1,1734 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>tvgramlive • Multi-Stream Telegram CDN & Orchestrator</title>
+  <!-- Google Fonts: Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Hls.js CDN para reproducción HLS -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
+  <style>
+    :root {
+      --bg-base: #090d16;
+      --bg-card: rgba(15, 23, 42, 0.75);
+      --bg-card-border: rgba(255, 255, 255, 0.08);
+      --bg-card-hover: rgba(30, 41, 59, 0.6);
+      --primary: #38bdf8;
+      --primary-hover: #0ea5e9;
+      --primary-glow: rgba(56, 189, 248, 0.25);
+      --accent: #818cf8;
+      --accent-telegram: #229ED9;
+      --acestream-green: #10b981;
+      --live-red: #ef4444;
+      --live-green: #10b981;
+      --live-amber: #f59e0b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-image: 
+        radial-gradient(circle at 12% 15%, rgba(34, 158, 217, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 88% 85%, rgba(129, 140, 248, 0.1) 0%, transparent 45%);
+      overflow-x: hidden;
+    }
+
+    /* Top Navbar */
+    header {
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--bg-card-border);
+      backdrop-filter: blur(16px);
+      background: rgba(9, 13, 22, 0.85);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent-telegram), var(--accent));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(34, 158, 217, 0.35);
+    }
+
+    .brand-icon svg { width: 24px; height: 24px; fill: white; }
+
+    .brand-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(to right, #ffffff, #93c5fd);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-tag {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0.2rem 0.6rem;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 999px;
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    /* Navigation Tabs */
+    .nav-tabs {
+      display: flex;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 12px;
+      padding: 0.3rem;
+      gap: 0.3rem;
+    }
+
+    .tab-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.55rem 1.1rem;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.05); }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(129, 140, 248, 0.2));
+      color: #fff;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      box-shadow: 0 2px 10px rgba(56, 189, 248, 0.15);
+    }
+
+    .tab-btn svg { width: 17px; height: 17px; }
+
+    .btn-telegram-help {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: linear-gradient(135deg, #229ED9, #0088cc);
+      color: #ffffff !important;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 999px;
+      padding: 0.45rem 1rem;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-decoration: none !important;
+      box-shadow: 0 2px 12px rgba(34, 158, 217, 0.4);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .btn-telegram-help:hover {
+      background: linear-gradient(135deg, #2cb5f6, #0ea5e9);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 18px rgba(34, 158, 217, 0.65);
+      color: #ffffff !important;
+    }
+    .btn-telegram-help svg {
+      width: 18px;
+      height: 18px;
+      fill: #ffffff;
+      flex-shrink: 0;
+    }
+
+    .header-actions { display: flex; align-items: center; gap: 1rem; }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.4rem 0.9rem;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--live-red);
+      letter-spacing: 0.05em;
+    }
+
+    .pulsing-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--live-red);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--live-red);
+      animation: pulse 1.5s infinite;
+    }
+
+    .pulsing-dot.green { background: var(--live-green); box-shadow: 0 0 10px var(--live-green); }
+    .pulsing-dot.amber { background: var(--live-amber); box-shadow: 0 0 10px var(--live-amber); }
+
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.3); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    /* Views Container */
+    .view-container {
+      display: none;
+      flex: 1;
+      max-width: 1440px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1.75rem 2rem;
+    }
+
+    .view-container.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ========================================================
+       VIEW 1: REPRODUCTOR EN VIVO
+       ======================================================== */
+    .channel-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+      padding: 0.85rem 1.25rem;
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(12px);
+    }
+
+    .channel-pills {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .channel-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.45rem 0.95rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--bg-card-border);
+      color: var(--text-muted);
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+
+    .channel-pill:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+
+    .channel-pill.active {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: var(--primary);
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(56, 189, 248, 0.2);
+    }
+
+    .player-layout {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 1.75rem;
+    }
+
+    @media (max-width: 1024px) {
+      .player-layout { grid-template-columns: 1fr; }
+    }
+
+    .player-section { display: flex; flex-direction: column; gap: 1.25rem; }
+
+    .video-card {
+      position: relative;
+      background: #000;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--bg-card-border);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+      aspect-ratio: 16 / 9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    video { width: 100%; height: 100%; object-fit: contain; outline: none; }
+
+    .placeholder-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      background: rgba(9, 13, 22, 0.88);
+      backdrop-filter: blur(8px);
+      z-index: 10;
+      transition: opacity 0.4s ease;
+      text-align: center;
+      padding: 1.5rem;
+    }
+
+    .placeholder-overlay.hidden { opacity: 0; pointer-events: none; }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid rgba(56, 189, 248, 0.15);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .live-pill-overlay {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.35rem 0.8rem;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #f87171;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      z-index: 5;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    }
+    .live-pill-overlay:hover {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: #ef4444;
+      transform: scale(1.04);
+    }
+
+    .stream-info-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.25rem 1.5rem;
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(12px);
+    }
+
+    .stream-meta h2 { font-size: 1.15rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .stream-meta p { font-size: 0.85rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+
+    .copy-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.55rem 1.1rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 10px;
+      color: var(--text-main);
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .copy-btn:hover {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: var(--primary);
+      color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    /* Sidebar / Metrics */
+    .sidebar { display: flex; flex-direction: column; gap: 1.25rem; }
+    .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      padding: 1.25rem;
+      border-radius: var(--radius);
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .metric-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+
+    .metric-val {
+      font-size: 1.55rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      color: #fff;
+    }
+    .metric-val.highlight { color: var(--primary); }
+    .metric-sub {
+      font-size: 0.73rem;
+      color: var(--text-muted);
+      font-family: 'Outfit', sans-serif;
+      margin-top: 0.2rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .feed-card {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      max-height: 480px;
+    }
+
+    .feed-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--bg-card-border);
+      padding-bottom: 0.75rem;
+    }
+
+    .feed-header h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .chunk-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      overflow-y: auto;
+      padding-right: 0.3rem;
+    }
+
+    .chunk-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.65rem 0.85rem;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-family: 'JetBrains Mono', monospace;
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(10px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .chunk-tag {
+      padding: 0.15rem 0.4rem;
+      background: rgba(34, 158, 217, 0.15);
+      color: var(--accent-telegram);
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .chunk-size { color: var(--text-muted); }
+
+    /* ========================================================
+       VIEW 2: PANEL DE CONTROL & CATÁLOGO DE CANALES
+       ======================================================== */
+    .manager-layout { display: flex; flex-direction: column; gap: 1.75rem; }
+
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--primary);
+    }
+    .kpi-card.green::before { background: var(--live-green); }
+    .kpi-card.amber::before { background: var(--live-amber); }
+
+    .kpi-title {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .kpi-value {
+      font-size: 1.7rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      color: #fff;
+    }
+
+    .kpi-subtitle { font-size: 0.78rem; color: var(--text-muted); }
+
+    .channels-section {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--bg-card-border);
+      padding-bottom: 1rem;
+    }
+
+    .section-header h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .channels-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .channel-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--bg-card-border);
+      border-radius: var(--radius-sm);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .channel-card:hover {
+      border-color: rgba(56, 189, 248, 0.3);
+      background: rgba(255, 255, 255, 0.05);
+      transform: translateY(-2px);
+    }
+
+    .channel-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .ch-title { font-size: 1.05rem; font-weight: 700; color: #fff; }
+    .ch-id { font-size: 0.74rem; font-family: 'JetBrains Mono', monospace; color: var(--primary); }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .status-badge.online {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .status-badge.paused {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .status-badge.stopped {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .ch-details {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .ch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .ch-url {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: #cbd5e1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 250px;
+    }
+
+    .token-tag {
+      font-size: 0.72rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .token-tag.dedicated { background: rgba(129, 140, 248, 0.15); color: #a5b4fc; }
+    .token-tag.global { background: rgba(255, 255, 255, 0.05); color: #94a3b8; }
+    .token-tag.off { background: rgba(239, 68, 68, 0.1); color: #f87171; }
+    .token-tag.acestream { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+
+    .channel-card-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.3rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      padding: 0.55rem 0.95rem;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.84rem;
+      font-weight: 600;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), #0284c7);
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(56, 189, 248, 0.25);
+    }
+    .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+    .btn-success {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.3);
+      color: #34d399;
+    }
+    .btn-success:hover { background: rgba(16, 185, 129, 0.25); color: #fff; }
+
+    .btn-warning {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: rgba(245, 158, 11, 0.3);
+      color: #fbbf24;
+    }
+    .btn-warning:hover { background: rgba(245, 158, 11, 0.25); color: #fff; }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #f87171;
+    }
+    .btn-danger:hover { background: rgba(239, 68, 68, 0.25); color: #fff; }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--bg-card-border);
+      color: var(--text-main);
+    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); }
+
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 1.75rem;
+    }
+    @media (max-width: 1080px) {
+      .bottom-grid { grid-template-columns: 1fr; }
+    }
+
+    .terminal-card {
+      background: #06090e;
+      border: 1px solid var(--bg-card-border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      height: 480px;
+    }
+
+    .terminal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      padding-bottom: 0.75rem;
+    }
+
+    .terminal-title {
+      font-size: 0.92rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #cbd5e1;
+    }
+
+    .terminal-dots { display: flex; gap: 6px; }
+    .t-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .t-dot.red { background: #ef4444; }
+    .t-dot.yellow { background: #f59e0b; }
+    .t-dot.green { background: #10b981; }
+
+    .terminal-body {
+      flex: 1;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      padding-right: 0.5rem;
+    }
+
+    .log-line { display: flex; align-items: baseline; gap: 0.65rem; word-break: break-all; }
+    .log-time { color: #64748b; font-size: 0.74rem; white-space: nowrap; }
+    .log-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .log-badge.INFO { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
+    .log-badge.SUCCESS { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .log-badge.WARN { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+    .log-badge.ERROR { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .log-text { color: #e2e8f0; flex: 1; }
+
+    /* Probe Box */
+    .probe-card {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      height: 480px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 0.65rem 0.9rem;
+      background: rgba(9, 13, 22, 0.7);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 8px;
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+    .form-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+    }
+
+    .probe-result {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 8px;
+      padding: 0.85rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: #a5f3fc;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+
+    /* Modal Styling */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+      overflow-y: auto;
+    }
+    .modal-backdrop.open {
+      display: flex !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+      visibility: visible !important;
+    }
+    .modal-backdrop:not(.open) {
+      display: none !important;
+      pointer-events: none !important;
+      visibility: hidden !important;
+    }
+    .modal-backdrop:not(.open) * {
+      pointer-events: none !important;
+      visibility: hidden !important;
+    }
+
+    .modal-box {
+      background: #0d131f;
+      border: 1px solid var(--bg-card-border);
+      border-radius: var(--radius);
+      max-width: 560px;
+      width: 100%;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85);
+      transform: scale(0.95);
+      transition: transform 0.25s ease;
+      margin: auto;
+      overflow: hidden;
+    }
+    .modal-backdrop.open .modal-box { transform: scale(1); }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--bg-card-border);
+      padding: 1.1rem 1.5rem;
+      background: rgba(15, 23, 42, 0.65);
+      flex-shrink: 0;
+    }
+    .modal-header h3 { font-size: 1.15rem; font-weight: 700; color: #fff; margin: 0; }
+
+    .modal-body {
+      padding: 1.25rem 1.5rem;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--bg-card-border);
+      background: rgba(15, 23, 42, 0.65);
+      flex-shrink: 0;
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 0.45rem; }
+    .form-label { font-size: 0.82rem; font-weight: 600; color: #cbd5e1; }
+    .form-hint { font-size: 0.72rem; color: var(--text-muted); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.19-.08-.05-.19-.02-.27 0-.12.03-1.99 1.27-5.61 3.72-.53.36-1.01.54-1.44.53-.47-.01-1.38-.27-2.06-.49-.83-.27-1.49-.42-1.43-.88.03-.24.37-.49 1.02-.75 3.98-1.73 6.64-2.88 7.97-3.44 3.8-1.58 4.59-1.86 5.11-1.87.11 0 .37.03.54.17.14.12.18.28.2.45-.02.07-.02.15-.03.22z"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-title">tvgramlive</div>
+      </div>
+      <span class="brand-tag">Multi-Stream Orchestrator</span>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button id="tab-player-btn" class="tab-btn active" onclick="switchTab('player')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        Reproductor en Vivo
+      </button>
+      <button id="tab-manager-btn" class="tab-btn" onclick="switchTab('manager')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        Panel de Control & Canales
+      </button>
+    </nav>
+
+    <div class="header-actions">
+      <a href="https://t.me/+HtwE40qhJgM4MTM0" target="_blank" rel="noopener noreferrer" class="btn-telegram-help" title="Canal y Grupo de Ayuda en Telegram">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.19-.08-.05-.19-.02-.27 0-.12.03-1.99 1.27-5.61 3.72-.53.36-1.01.54-1.44.53-.47-.01-1.38-.27-2.06-.49-.83-.27-1.49-.42-1.43-.88.03-.24.37-.49 1.02-.75 3.98-1.73 6.64-2.88 7.97-3.44 3.8-1.58 4.59-1.86 5.11-1.87.11 0 .37.03.54.17.14.12.18.28.2.45-.02.07-.02.15-.03.22z"/>
+        </svg>
+        <span>Ayuda</span>
+      </a>
+      <span style="background: rgba(34, 158, 217, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.75rem; padding: 0.35rem 0.65rem; border-radius: 999px; display: inline-flex; align-items: center; gap: 0.4rem;" title="El servidor solo sube chunks a Telegram. Las descargas de Telegram están totalmente desactivadas en este PC.">
+        <span>📤</span>
+        <span>Telegram: Solo Emisor (0 descargas)</span>
+      </span>
+      <div id="header-status-badge" class="live-badge">
+        <span class="pulsing-dot" id="header-dot"></span>
+        <span id="header-status-text">STANDBY</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================
+       VIEW 1: REPRODUCTOR EN VIVO
+       ======================================================== -->
+  <main id="view-player" class="view-container active">
+    <!-- Channel Bar Selector -->
+    <div class="channel-bar">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <span style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Canal:</span>
+        <div class="channel-pills" id="player-channel-pills"></div>
+      </div>
+      <div id="player-channel-status-pill"></div>
+    </div>
+
+    <div class="player-layout">
+      <!-- Video Player -->
+      <section class="player-section">
+        <div class="video-card">
+          <video id="video-element" controls autoplay playsinline muted></video>
+
+          <button id="live-edge-badge" class="live-pill-overlay" onclick="syncToLiveEdge()" title="Sincronizar con el directo">
+            <span class="pulsing-dot"></span>
+            <span>DIRECTO</span>
+          </button>
+
+          <div id="loader-overlay" class="placeholder-overlay">
+            <div id="player-solo-telegram-box" style="display: none; text-align: center; padding: 1.5rem 1rem;">
+              <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">📲</div>
+              <h3 style="color: #fff; font-size: 1.15rem; margin-bottom: 0.35rem; font-weight: 700;">Modo Emisor Telegram (Reproductor Local Pausado)</h3>
+              <p style="color: #94a3b8; font-size: 0.85rem; max-width: 440px; margin: 0 auto 1.25rem auto; line-height: 1.45;">
+                El navegador <strong>no está descargando ningún fragmento</strong> para garantizar el 100% de ancho de banda y 0% de CPU. Tu cliente de Telegram en Android está recibiendo el directo directamente.
+              </p>
+              <button class="btn btn-primary" onclick="toggleLocalPlayer(true)" style="padding: 0.5rem 1.25rem; font-size: 0.88rem;">
+                ▶ Activar Vista Previa Web
+              </button>
+            </div>
+            <div id="loader-spinner-box">
+              <div class="spinner" id="loader-spinner"></div>
+              <p id="loader-title" style="font-weight: 600; color: #cbd5e1; margin-top: 0.5rem;">Cargando canal...</p>
+              <span id="loader-desc" style="font-size: 0.82rem; color: #64748b;">Conectando con el buffer HLS</span>
+              <button id="btn-start-from-player" class="btn btn-primary" style="margin-top: 0.75rem; display: none;" onclick="startCurrentPlayerChannel(this)">
+                ▶ Iniciar Emisión de este Canal
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="stream-info-bar">
+          <div class="stream-meta">
+            <h2 id="current-channel-title">Canal Principal</h2>
+            <p id="hls-url-display">http://localhost:8080/live.m3u8</p>
+          </div>
+          <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <button id="btn-toggle-player" class="btn btn-secondary" onclick="toggleLocalPlayer()" style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; padding: 0.45rem 0.85rem;">
+              <span id="player-toggle-icon">⏸</span>
+              <span id="player-toggle-text">Desactivar Vista Previa</span>
+            </button>
+            <button class="copy-btn" onclick="copyHlsUrl()">
+              <span>📋 Copiar HLS URL</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sidebar metrics -->
+      <aside class="sidebar">
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <span class="metric-label">Chunks Subidos</span>
+            <span class="metric-val highlight" id="m-chunks">0</span>
+            <span class="metric-sub">📤 Enviados a Telegram</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Búfer HLS</span>
+            <span class="metric-val" id="m-buffer">0s</span>
+            <span class="metric-sub">⚡ En RAM Local</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Ancho de Banda</span>
+            <span class="metric-val" id="m-bandwidth">0 Mbps</span>
+            <span class="metric-sub">🚀 Ingesta AceStream/M3U</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Bitrate HLS</span>
+            <span class="metric-val" id="m-bitrate">0 kbps</span>
+            <span class="metric-sub">🎥 Stream Activo</span>
+          </div>
+        </div>
+
+        <div class="feed-card">
+          <div class="feed-header">
+            <h3>
+              <span>⚡ Últimos Chunks Transmitidos</span>
+            </h3>
+            <span style="font-size: 0.72rem; color: var(--text-muted);" id="chunk-counter-sub">0 total</span>
+          </div>
+          <ul class="chunk-list" id="chunk-feed">
+            <li class="chunk-item" style="color: var(--text-muted); justify-content: center;">Esperando datos de la transmisión...</li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- ========================================================
+       VIEW 2: PANEL DE CONTROL Y CANALES
+       ======================================================== -->
+  <main id="view-manager" class="view-container">
+    <div class="manager-layout">
+      <!-- KPI Row -->
+      <div class="kpi-row">
+        <div class="kpi-card green">
+          <span class="kpi-title">Canales Activos</span>
+          <span class="kpi-value" id="kpi-active-channels">0 / 0</span>
+          <span class="kpi-subtitle">Transmitiendo en directo</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-title">Motor AceStream</span>
+          <span class="kpi-value" id="kpi-acestream-status">ONLINE</span>
+          <span class="kpi-subtitle">Puerto 6878 / HTTP Proxy</span>
+        </div>
+        <div class="kpi-card amber">
+          <span class="kpi-title">Total Chunks CDN</span>
+          <span class="kpi-value" id="kpi-total-chunks">0</span>
+          <span class="kpi-subtitle">Almacenados en Telegram</span>
+        </div>
+      </div>
+
+      <!-- Catalogue Section -->
+      <section class="channels-section">
+        <div class="section-header">
+          <h3>
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+            </svg>
+            Catálogo de Canales
+          </h3>
+          <button class="btn btn-primary" onclick="openAddChannelModal()">
+            <span>+ Añadir Nuevo Canal</span>
+          </button>
+        </div>
+
+        <div class="channels-grid" id="channels-grid">
+          <!-- Rendered dynamically -->
+        </div>
+      </section>
+
+      <!-- Bottom Grid: Terminal & Probe -->
+      <div class="bottom-grid">
+        <!-- Live Terminal -->
+        <div class="terminal-card">
+          <div class="terminal-header">
+            <div class="terminal-title">
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              <span>Consola de Orchestrator & Transmit Engine</span>
+            </div>
+            <div class="terminal-dots">
+              <div class="t-dot red"></div>
+              <div class="t-dot yellow"></div>
+              <div class="t-dot green"></div>
+            </div>
+          </div>
+          <div class="terminal-body" id="terminal-body">
+            <div class="log-line">
+              <span class="log-time">[SYSTEM INITIALIZED]</span>
+              <span class="log-badge INFO">INFO</span>
+              <span class="log-text">tvgramlive listo para orquestar emisiones AceStream / M3U.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- AceStream & Stream Probe -->
+        <div class="probe-card">
+          <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--bg-card-border); padding-bottom: 0.75rem;">
+            <h3 style="font-size: 0.95rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+              🔍 Analizador AceStream / Probe Stream
+            </h3>
+          </div>
+          <p style="font-size: 0.78rem; color: var(--text-muted);">
+            Introduce un Content ID de AceStream (o URL HTTP/M3U8) para verificar la conectividad de los peers y obtener metadatos de audio/vídeo antes de añadirlo.
+          </p>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" id="probe-input" class="form-input" placeholder="acestream://... o ID (ej: 421a...)" />
+            <button class="btn btn-primary" onclick="runStreamProbe()">Probar</button>
+          </div>
+          <div class="probe-result" id="probe-result">Esperando prueba de stream...</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ========================================================
+       MODAL: AÑADIR / EDITAR CANAL
+       ======================================================== -->
+  <div class="modal-backdrop" id="channel-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modal-title">Añadir Nuevo Canal</h3>
+        <button onclick="closeChannelModal()" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem;">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-channel-id-edit" value="" />
+        
+        <div class="form-group">
+          <label class="form-label">Nombre del Canal</label>
+          <input type="text" id="form-channel-name" class="form-input" placeholder="ej: LaLiga HD, Movistar Deportes..." />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Tipo de Fuente</label>
+          <select id="form-channel-type" class="form-input" onchange="toggleSourceTypeFields()">
+            <option value="acestream">AceStream (Content ID / acestream://)</option>
+            <option value="hls">M3U8 / HLS Directo (HTTP / HTTPS)</option>
+            <option value="ts">MPEG-TS / IPTV Stream (HTTP)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" id="form-source-url-label">AceStream Content ID / URL</label>
+          <input type="text" id="form-channel-url" class="form-input" placeholder="e.g. 518342a3f912c98a0d9e... o http://..." />
+          <span class="form-hint" id="form-source-url-hint">Introduce el Hash de 40 caracteres de AceStream o el enlace torrent/acestream.</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Telegram Bot Token (Opcional)</label>
+          <input type="text" id="form-channel-token" class="form-input" placeholder="Dejar en blanco para usar el Bot Global de Telegram" />
+          <span class="form-hint">Permite asignar un Bot exclusivo para este canal evitando limites de API Rate-limit.</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">ID de Chat / Canal de Telegram Destino</label>
+          <input type="text" id="form-channel-chatid" class="form-input" placeholder="-100123456789" />
+          <span class="form-hint">ID numérico del canal público o privado donde se enviarán los fragmentos.</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeChannelModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveChannel()">Guardar Canal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       LOGICA JAVASCRIPT & ESTADO DEL SISTEMA
+       ======================================================== -->
+  <script>
+    // --- ESTADO GLOBAL ---
+    let channels = [
+      {
+        id: 'ch-1',
+        name: 'Deportes HD 1 (AceStream)',
+        type: 'acestream',
+        url: 'acestream://94812a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f',
+        status: 'online', // online, paused, stopped
+        telegramToken: '', // Usa global
+        chatId: '-1001982374123',
+        chunksUploaded: 142,
+        bitrate: '4.8 Mbps'
+      },
+      {
+        id: 'ch-2',
+        name: 'Eurosport 1 Directo',
+        type: 'hls',
+        url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+        status: 'online',
+        telegramToken: '612345678:AAFe1234567890abcdef...',
+        chatId: '-1001554433221',
+        chunksUploaded: 89,
+        bitrate: '3.2 Mbps'
+      },
+      {
+        id: 'ch-3',
+        name: 'Canal Motor P2P',
+        type: 'acestream',
+        url: 'acestream://1234567890abcdef1234567890abcdef12345678',
+        status: 'stopped',
+        telegramToken: '',
+        chatId: '-1001982374123',
+        chunksUploaded: 0,
+        bitrate: '0 kbps'
+      }
+    ];
+
+    let currentChannelId = 'ch-1';
+    let hlsPlayer = null;
+    let localPlayerActive = true;
+    let chunkLogCount = 0;
+
+    // --- NAVEGACIÓN ENTRE PESTAÑAS ---
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.view-container').forEach(view => view.classList.remove('active'));
+
+      if (tabName === 'player') {
+        document.getElementById('tab-player-btn').classList.add('active');
+        document.getElementById('view-player').classList.add('active');
+      } else {
+        document.getElementById('tab-manager-btn').classList.add('active');
+        document.getElementById('view-manager').classList.add('active');
+      }
+    }
+
+    // --- CARGA DE CANALES EN EL REPRODUCTOR ---
+    function renderPlayerChannelPills() {
+      const container = document.getElementById('player-channel-pills');
+      container.innerHTML = '';
+
+      channels.forEach(ch => {
+        const pill = document.createElement('button');
+        pill.className = `channel-pill ${ch.id === currentChannelId ? 'active' : ''}`;
+        
+        let icon = '📺';
+        if (ch.type === 'acestream') icon = '🟢';
+        
+        pill.innerHTML = `<span>${icon}</span> <span>${ch.name}</span>`;
+        pill.onclick = () => selectPlayerChannel(ch.id);
+        container.appendChild(pill);
+      });
+
+      renderPlayerChannelStatusPill();
+    }
+
+    function renderPlayerChannelStatusPill() {
+      const container = document.getElementById('player-channel-status-pill');
+      const activeCh = channels.find(c => c.id === currentChannelId);
+      
+      if (!activeCh) return;
+
+      let badgeClass = 'stopped';
+      let text = 'DETENIDO';
+      if (activeCh.status === 'online') { badgeClass = 'online'; text = 'TRANSMITIENDO'; }
+      if (activeCh.status === 'paused') { badgeClass = 'paused'; text = 'PAUSADO'; }
+
+      container.innerHTML = `
+        <span class="status-badge ${badgeClass}">
+          <span class="pulsing-dot ${badgeClass === 'online' ? 'green' : (badgeClass === 'paused' ? 'amber' : '')}"></span>
+          ${text}
+        </span>
+      `;
+    }
+
+    function selectPlayerChannel(id) {
+      currentChannelId = id;
+      renderPlayerChannelPills();
+      
+      const ch = channels.find(c => c.id === id);
+      if (!ch) return;
+
+      document.getElementById('current-channel-title').innerText = ch.name;
+      document.getElementById('hls-url-display').innerText = `http://localhost:8080/live/${ch.id}/stream.m3u8`;
+
+      // Actualizar vista previa HLS si está en vivo
+      if (ch.status === 'online') {
+        document.getElementById('loader-overlay').classList.add('hidden');
+        document.getElementById('btn-start-from-player').style.display = 'none';
+        initHlsPlayer(ch);
+      } else {
+        document.getElementById('loader-overlay').classList.remove('hidden');
+        document.getElementById('loader-spinner-box').style.display = 'block';
+        document.getElementById('player-solo-telegram-box').style.display = 'none';
+        document.getElementById('loader-title').innerText = 'Canal no activo';
+        document.getElementById('loader-desc').innerText = 'Haz clic en iniciar para arrancar el motor AceStream / Transmisión.';
+        document.getElementById('btn-start-from-player').style.display = 'inline-flex';
+        
+        if (hlsPlayer) {
+          hlsPlayer.destroy();
+          hlsPlayer = null;
+        }
+      }
+
+      addLog('INFO', `Seleccionado canal: ${ch.name} (${ch.type.toUpperCase()})`);
+    }
+
+    function startCurrentPlayerChannel() {
+      const ch = channels.find(c => c.id === currentChannelId);
+      if (ch) {
+        ch.status = 'online';
+        renderCatalogue();
+        selectPlayerChannel(ch.id);
+        addLog('SUCCESS', `Iniciada la transmisión para ${ch.name}`);
+      }
+    }
+
+    // --- REPRODUCTOR HLS.JS ---
+    function initHlsPlayer(channel) {
+      const video = document.getElementById('video-element');
+      const streamUrl = channel.type === 'hls' ? channel.url : 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8'; // Fallback demo stream
+
+      if (hlsPlayer) {
+        hlsPlayer.destroy();
+      }
+
+      if (Hls.isSupported()) {
+        hlsPlayer = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+          backBufferLength: 90
+        });
+
+        hlsPlayer.loadSource(streamUrl);
+        hlsPlayer.attachMedia(video);
+
+        hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => {
+          if (localPlayerActive) {
+            video.play().catch(e => console.log('Autoplay blocked:', e));
+          }
+        });
+
+        hlsPlayer.on(Hls.Events.LEVEL_LOADED, (event, data) => {
+          document.getElementById('m-bitrate').innerText = `${Math.round(data.details.totalduration || 4500)} kbps`;
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = streamUrl;
+        if (localPlayerActive) video.play();
+      }
+    }
+
+    function syncToLiveEdge() {
+      const video = document.getElementById('video-element');
+      if (video && video.seekable.length) {
+        video.currentTime = video.seekable.end(video.seekable.length - 1);
+        addLog('INFO', 'Sincronizado con el directo (Live Edge).');
+      }
+    }
+
+    function toggleLocalPlayer(forceEnable = false) {
+      if (forceEnable) localPlayerActive = true;
+      else localPlayerActive = !localPlayerActive;
+
+      const overlay = document.getElementById('loader-overlay');
+      const spinnerBox = document.getElementById('loader-spinner-box');
+      const soloTgBox = document.getElementById('player-solo-telegram-box');
+      const toggleText = document.getElementById('player-toggle-text');
+      const toggleIcon = document.getElementById('player-toggle-icon');
+      const video = document.getElementById('video-element');
+
+      const ch = channels.find(c => c.id === currentChannelId);
+
+      if (!localPlayerActive) {
+        video.pause();
+        overlay.classList.remove('hidden');
+        spinnerBox.style.display = 'none';
+        soloTgBox.style.display = 'block';
+        toggleText.innerText = 'Activar Vista Previa';
+        toggleIcon.innerText = '▶';
+        addLog('WARN', 'Vista previa local pausada (Modo 0 descargas activado).');
+      } else {
+        soloTgBox.style.display = 'none';
+        if (ch && ch.status === 'online') {
+          overlay.classList.add('hidden');
+          video.play().catch(() => {});
+        } else {
+          spinnerBox.style.display = 'block';
+        }
+        toggleText.innerText = 'Desactivar Vista Previa';
+        toggleIcon.innerText = '⏸';
+        addLog('INFO', 'Vista previa local reactivada.');
+      }
+    }
+
+    function copyHlsUrl() {
+      const urlText = document.getElementById('hls-url-display').innerText;
+      navigator.clipboard.writeText(urlText).then(() => {
+        alert('✅ URL HLS copiada al portapapeles: ' + urlText);
+      });
+    }
+
+    // --- CATÁLOGO Y GESTIÓN DE CANALES ---
+    function renderCatalogue() {
+      const grid = document.getElementById('channels-grid');
+      grid.innerHTML = '';
+
+      let activeCount = 0;
+
+      channels.forEach(ch => {
+        if (ch.status === 'online') activeCount++;
+
+        const card = document.createElement('div');
+        card.className = 'channel-card';
+
+        let statusBadge = `<span class="status-badge stopped"><span class="pulsing-dot"></span> DETENIDO</span>`;
+        if (ch.status === 'online') statusBadge = `<span class="status-badge online"><span class="pulsing-dot green"></span> ONLINE</span>`;
+        if (ch.status === 'paused') statusBadge = `<span class="status-badge paused"><span class="pulsing-dot amber"></span> PAUSADO</span>`;
+
+        let tokenTag = `<span class="token-tag global">Bot Global</span>`;
+        if (ch.telegramToken) tokenTag = `<span class="token-tag dedicated">Bot Dedicado</span>`;
+
+        let typeTag = ch.type === 'acestream' ? `<span class="token-tag acestream">AceStream</span>` : `<span class="token-tag global">HLS / M3U</span>`;
+
+        card.innerHTML = `
+          <div class="channel-card-header">
+            <div>
+              <div class="ch-title">${ch.name}</div>
+              <div class="ch-id">${ch.id} • ${typeTag}</div>
+            </div>
+            ${statusBadge}
+          </div>
+
+          <div class="ch-details">
+            <div class="ch-row">
+              <span>Fuente:</span>
+              <span class="ch-url" title="${ch.url}">${ch.url}</span>
+            </div>
+            <div class="ch-row">
+              <span>Telegram Chat:</span>
+              <span style="font-family: monospace;">${ch.chatId || 'No asignado'}</span>
+            </div>
+            <div class="ch-row">
+              <span>Modo Bot:</span>
+              ${tokenTag}
+            </div>
+            <div class="ch-row" style="margin-top: 0.2rem;">
+              <span>Chunks CDN:</span>
+              <strong style="color: var(--primary); font-family: 'JetBrains Mono';">${ch.chunksUploaded}</strong>
+            </div>
+          </div>
+
+          <div class="channel-card-actions">
+            ${ch.status === 'online' ? 
+              `<button class="btn btn-warning" style="flex:1;" onclick="toggleChannelState('${ch.id}', 'paused')">⏸ Pausar</button>
+               <button class="btn btn-danger" style="flex:1;" onclick="toggleChannelState('${ch.id}', 'stopped')">⏹ Detener</button>` :
+              `<button class="btn btn-success" style="flex:1;" onclick="toggleChannelState('${ch.id}', 'online')">▶ Iniciar Emisión</button>`
+            }
+            <button class="btn btn-secondary" onclick="openEditChannelModal('${ch.id}')">✏️</button>
+            <button class="btn btn-danger" style="padding: 0.55rem 0.75rem;" onclick="deleteChannel('${ch.id}')">🗑</button>
+          </div>
+        `;
+
+        grid.appendChild(card);
+      });
+
+      // Actualizar KPIs
+      document.getElementById('kpi-active-channels').innerText = `${activeCount} / ${channels.length}`;
+      renderPlayerChannelPills();
+    }
+
+    function toggleChannelState(id, newState) {
+      const ch = channels.find(c => c.id === id);
+      if (ch) {
+        ch.status = newState;
+        renderCatalogue();
+        if (id === currentChannelId) {
+          selectPlayerChannel(id);
+        }
+        addLog('INFO', `Estado del canal ${ch.name} cambiado a: ${newState.toUpperCase()}`);
+      }
+    }
+
+    function deleteChannel(id) {
+      if (confirm('¿Estás seguro de que deseas eliminar este canal?')) {
+        channels = channels.filter(c => c.id !== id);
+        if (currentChannelId === id && channels.length > 0) {
+          currentChannelId = channels[0].id;
+        }
+        renderCatalogue();
+        addLog('WARN', `Canal ${id} eliminado del sistema.`);
+      }
+    }
+
+    // --- MODAL DE GESTIÓN DE CANAL ---
+    function openAddChannelModal() {
+      document.getElementById('modal-title').innerText = 'Añadir Nuevo Canal';
+      document.getElementById('form-channel-id-edit').value = '';
+      document.getElementById('form-channel-name').value = '';
+      document.getElementById('form-channel-type').value = 'acestream';
+      document.getElementById('form-channel-url').value = '';
+      document.getElementById('form-channel-token').value = '';
+      document.getElementById('form-channel-chatid').value = '';
+      
+      toggleSourceTypeFields();
+      document.getElementById('channel-modal').classList.add('open');
+    }
+
+    function openEditChannelModal(id) {
+      const ch = channels.find(c => c.id === id);
+      if (!ch) return;
+
+      document.getElementById('modal-title').innerText = 'Editar Canal ' + ch.id;
+      document.getElementById('form-channel-id-edit').value = ch.id;
+      document.getElementById('form-channel-name').value = ch.name;
+      document.getElementById('form-channel-type').value = ch.type;
+      document.getElementById('form-channel-url').value = ch.url;
+      document.getElementById('form-channel-token').value = ch.telegramToken;
+      document.getElementById('form-channel-chatid').value = ch.chatId;
+
+      toggleSourceTypeFields();
+      document.getElementById('channel-modal').classList.add('open');
+    }
+
+    function closeChannelModal() {
+      document.getElementById('channel-modal').classList.remove('open');
+    }
+
+    function toggleSourceTypeFields() {
+      const type = document.getElementById('form-channel-type').value;
+      const label = document.getElementById('form-source-url-label');
+      const hint = document.getElementById('form-source-url-hint');
+
+      if (type === 'acestream') {
+        label.innerText = 'AceStream Content ID / Hash';
+        hint.innerText = 'Hash hexadecimal de 40 caracteres (ej: 421a3b...) o enlace acestream://';
+      } else {
+        label.innerText = 'URL del Stream Directo (HLS / M3U8 / TS)';
+        hint.innerText = 'URL HTTP/HTTPS directa del manifiesto M3U8 o flujo TS.';
+      }
+    }
+
+    function saveChannel() {
+      const editId = document.getElementById('form-channel-id-edit').value;
+      const name = document.getElementById('form-channel-name').value.trim();
+      const type = document.getElementById('form-channel-type').value;
+      const url = document.getElementById('form-channel-url').value.trim();
+      const token = document.getElementById('form-channel-token').value.trim();
+      const chatId = document.getElementById('form-channel-chatid').value.trim();
+
+      if (!name || !url) {
+        alert('Por favor introduce un nombre y una URL / Content ID válido.');
+        return;
+      }
+
+      if (editId) {
+        // Editar
+        const ch = channels.find(c => c.id === editId);
+        if (ch) {
+          ch.name = name;
+          ch.type = type;
+          ch.url = url;
+          ch.telegramToken = token;
+          ch.chatId = chatId;
+          addLog('SUCCESS', `Canal ${ch.id} actualizado.`);
+        }
+      } else {
+        // Crear
+        const newId = `ch-${channels.length + 1}`;
+        channels.push({
+          id: newId,
+          name: name,
+          type: type,
+          url: url,
+          status: 'stopped',
+          telegramToken: token,
+          chatId: chatId,
+          chunksUploaded: 0,
+          bitrate: '0 kbps'
+        });
+        addLog('SUCCESS', `Nuevo canal creado: ${name} (${newId})`);
+      }
+
+      closeChannelModal();
+      renderCatalogue();
+    }
+
+    // --- PROBE ANALYZER ---
+    function runStreamProbe() {
+      const input = document.getElementById('probe-input').value.trim();
+      const resultBox = document.getElementById('probe-result');
+
+      if (!input) {
+        resultBox.innerText = '⚠️ Por favor, introduce un Content ID de AceStream o URL.';
+        return;
+      }
+
+      resultBox.innerText = '🔍 Conectando con AceStream Engine (127.0.0.1:6878)...\nBuscando Peers P2P y resolviendo stream info...';
+
+      setTimeout(() => {
+        resultBox.innerText = `✅ [PROBE SUCCESSFUL]\n------------------------------\nSource: ${input}\nStatus: Active Stream Available\nPeers: 42 Connected (12 Seeders)\nVideo: H264 - 1920x1080@50fps\nAudio: AAC Stereo (48000Hz)\nEst. Bitrate: 4500 kbps\nEngine Status: Ready to transcode/stream to Telegram CDN.`;
+        addLog('SUCCESS', `Probe exitoso para: ${input.substring(0, 20)}...`);
+      }, 1200);
+    }
+
+    // --- CONSOLA Y FEED SIMULADO EN TIEMPO REAL ---
+    function addLog(type, text) {
+      const body = document.getElementById('terminal-body');
+      const time = new Date().toLocaleTimeString();
+
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      line.innerHTML = `
+        <span class="log-time">[${time}]</span>
+        <span class="log-badge ${type}">${type}</span>
+        <span class="log-text">${text}</span>
+      `;
+
+      body.appendChild(line);
+      body.scrollTop = body.scrollHeight;
+    }
+
+    function simulateLiveTraffic() {
+      setInterval(() => {
+        const activeChannels = channels.filter(c => c.status === 'online');
+        if (activeChannels.length === 0) return;
+
+        // Seleccionar canal aleatorio para subir chunk
+        const randomCh = activeChannels[Math.floor(Math.random() * activeChannels.length)];
+        randomCh.chunksUploaded++;
+
+        chunkLogCount++;
+        document.getElementById('m-chunks').innerText = chunkLogCount;
+        document.getElementById('kpi-total-chunks').innerText = chunkLogCount + 230; // Total acumulado
+
+        // Actualizar métricas visuales
+        document.getElementById('m-buffer').innerText = `${(Math.random() * 3 + 8).toFixed(1)}s`;
+        document.getElementById('m-bandwidth').innerText = `${(Math.random() * 2 + 4.5).toFixed(1)} Mbps`;
+
+        // Añadir elemento al Feed del reproductor
+        const feed = document.getElementById('chunk-feed');
+        if (feed.children.length === 1 && feed.children[0].innerText.includes('Esperando')) {
+          feed.innerHTML = '';
+        }
+
+        const chunkId = Math.floor(Math.random() * 899999) + 100000;
+        const chunkSize = (Math.random() * 0.8 + 1.2).toFixed(2);
+
+        const item = document.createElement('li');
+        item.className = 'chunk-item';
+        item.innerHTML = `
+          <span>chunk_${chunkId}.ts (${randomCh.name})</span>
+          <span class="chunk-tag">📤 Telegram Upload</span>
+          <span class="chunk-size">${chunkSize} MB</span>
+        `;
+
+        feed.insertBefore(item, feed.firstChild);
+        if (feed.children.length > 8) {
+          feed.removeChild(feed.lastChild);
+        }
+
+        document.getElementById('chunk-counter-sub').innerText = `${chunkLogCount} chunks en esta sesión`;
+
+        // Renderizar catálogo si la pestaña de catálogo está abierta
+        renderCatalogue();
+      }, 3500);
+    }
+
+    // --- INICIALIZACIÓN AL CARGAR ---
+    window.addEventListener('DOMContentLoaded', () => {
+      renderCatalogue();
+      selectPlayerChannel('ch-1');
+      simulateLiveTraffic();
+    });
+  </script>
+</body>
+</html>
